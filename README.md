@@ -7,6 +7,8 @@ Protohackers challenges solved in Elixir and OTP (`gen_tcp` and `gen_udp`).
 `main` implements the challenge I'm working on currently and might not be working yet.
 Solved challenges are tagged.
 
+* [Challenge 0](https://github.com/maartenJacobs/protohackex/tree/challenge-0)
+
 ## Installation
 
 1. Use `asdf` or similar to install Elixir 1.14 and Erlang/OTP 25.
