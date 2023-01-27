@@ -1,0 +1,2 @@
+defmodule Protohackex do
+end
