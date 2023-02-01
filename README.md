@@ -8,6 +8,7 @@ Protohackers challenges solved in Elixir and OTP (`gen_tcp` and `gen_udp`).
 Solved challenges are tagged.
 
 * [Challenge 0](https://github.com/maartenJacobs/protohackex/tree/challenge-0)
+* [Challenge 1](https://github.com/maartenJacobs/protohackex/tree/challenge-1)
 
 ## Installation
 
