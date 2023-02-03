@@ -6,7 +6,7 @@ defmodule Protohackex.Application do
 
     children = [
       Tcp.AsyncServer.ConnectionSupervisor,
-      {Tcp.AsyncServer, [port: port, handler_mod: Protohackex.PrimeServer]}
+      {Tcp.AsyncServer, [port: port, handler_mod: Protohackex.AssetServer]}
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one)
