@@ -5,8 +5,7 @@ defmodule Protohackex.Application do
     port = Application.get_env(:protohackex, :port)
 
     children = [
-      Tcp.AsyncServer.ConnectionSupervisor,
-      {Tcp.AsyncServer, [port: port, handler_mod: Protohackex.AssetServer]}
+      {Protohackex.ChatServer, [port: port]}
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one)
