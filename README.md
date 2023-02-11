@@ -11,6 +11,8 @@ Solved challenges are tagged.
 * [Challenge 1](https://github.com/maartenJacobs/protohackex/tree/challenge-1)
 * [Challenge 2](https://github.com/maartenJacobs/protohackex/tree/challenge-2)
 * [Challenge 3](https://github.com/maartenJacobs/protohackex/tree/challenge-3)
+* [Challenge 4](https://github.com/maartenJacobs/protohackex/tree/challenge-4)
+* [Challenge 5](https://github.com/maartenJacobs/protohackex/tree/challenge-5)
 
 ## Installation
 
