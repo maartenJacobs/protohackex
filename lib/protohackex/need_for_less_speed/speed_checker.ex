@@ -72,6 +72,8 @@ defmodule Protohackex.NeedForLessSpeed.SpeedChecker do
   end
 
   defp get_previous_observation(observations, from_position) do
+    # `Enum.at/2` handles negative indices with modular arithmetic
+    # so `observations[-1]` would return the wrong observation.
     case from_position do
       0 -> nil
       _ -> Enum.at(observations, from_position - 1)

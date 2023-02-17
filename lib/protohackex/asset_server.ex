@@ -19,7 +19,7 @@ defmodule Protohackex.AssetServer do
     case :gen_tcp.recv(socket, 0) do
       {:ok, payload} ->
         buffer = buffer <> payload
-        {requests, buffer} = chunk_bitstring_every(buffer, 9)
+        {requests, buffer} = Protohackex.BitString.chunk_bitstring_every(buffer, 9)
 
         session = process(socket, session, requests)
 
@@ -27,16 +27,6 @@ defmodule Protohackex.AssetServer do
 
       {:error, _reason} ->
         :ok
-    end
-  end
-
-  defp chunk_bitstring_every(bitstring, n_bytes, chunks \\ []) do
-    case bitstring do
-      <<chunk::binary-size(n_bytes), rest::bits>> ->
-        chunk_bitstring_every(rest, n_bytes, [chunk | chunks])
-
-      rest ->
-        {Enum.reverse(chunks), rest}
     end
   end
 
