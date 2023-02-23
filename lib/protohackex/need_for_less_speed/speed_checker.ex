@@ -34,6 +34,12 @@ defmodule Protohackex.NeedForLessSpeed.SpeedChecker do
     %{checker | road: road, speed_limit_mph: speed_limit_mph, camera_positions: new_cameras}
   end
 
+  def remove_camera(%__MODULE__{} = checker, camera_id) do
+    new_cameras = Map.delete(checker.camera_positions, camera_id)
+
+    %{checker | camera_positions: new_cameras}
+  end
+
   def add_observation(%__MODULE__{} = checker, camera_id, plate, timestamp) do
     checker =
       add_observation_in_order(checker, plate, %{camera_id: camera_id, timestamp: timestamp})

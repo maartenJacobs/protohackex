@@ -6,33 +6,36 @@ defmodule Protohackex.NeedForLessSpeed.Message do
   surprisingly easy to implement with pattern matching.
   """
 
-  @spec parse_message(binary()) ::
+  alias Protohackex.NeedForLessSpeed.Road
+
+  @type message_type ::
           {:plate, String.t(), non_neg_integer()}
           | {:want_heartbeat, non_neg_integer()}
-          | {:camera_id,
-             %{road: non_neg_integer(), mile: non_neg_integer(), limit_mph: non_neg_integer()}}
+          | {:camera_id, Road.camera()}
           | {:dispatcher_id, [non_neg_integer()]}
           | :unknown
+
+  @spec parse_message(binary()) :: {message_type(), binary()}
   def parse_message(payload) do
     case payload do
       <<32::unsigned-integer-8, plate_length::unsigned-integer-8,
-        plate::binary-size(plate_length), timestamp::unsigned-integer-32>> ->
-        {:plate, plate, timestamp}
+        plate::binary-size(plate_length), timestamp::unsigned-integer-32, rest::binary>> ->
+        {{:plate, plate, timestamp}, rest}
 
-      <<64::unsigned-integer-8, interval::unsigned-integer-32>> ->
-        {:want_heartbeat, interval}
+      <<64::unsigned-integer-8, interval::unsigned-integer-32, rest::binary>> ->
+        {{:want_heartbeat, interval}, rest}
 
       <<128::unsigned-integer-8, road::unsigned-integer-16, mile::unsigned-integer-16,
-        limit_mph::unsigned-integer-16>> ->
-        {:camera_id, %{road: road, mile: mile, limit_mph: limit_mph}}
+        limit_mph::unsigned-integer-16, rest::binary>> ->
+        {{:camera_id, %{road: road, mile: mile, limit_mph: limit_mph}}, rest}
 
-      <<129::unsigned-integer-8, num_roads::unsigned-integer-8,
-        roads::binary-size(num_roads * 2)>> ->
+      <<129::unsigned-integer-8, num_roads::unsigned-integer-8, roads::binary-size(num_roads * 2),
+        rest::binary>> ->
         roads = Protohackex.BitString.chunk_bitstring_every(roads, 2)
-        {:dispatcher_id, roads}
+        {{:dispatcher_id, roads}, rest}
 
       _ ->
-        :unknown
+        {:unknown, payload}
     end
   end
 

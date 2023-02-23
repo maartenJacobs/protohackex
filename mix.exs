@@ -29,7 +29,9 @@ defmodule Protohackex.MixProject do
   defp aliases() do
     [
       up: ["deps.get", "compile", "run --no-halt"],
-      shell: ["deps.get", "compile", "run --no-start"]
+      shell: ["deps.get", "compile", "run --no-start"],
+      # `--no-start` is needed to avoid global registry
+      test: ["test --no-start"]
     ]
   end
 end

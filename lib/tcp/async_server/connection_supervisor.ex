@@ -10,7 +10,8 @@ defmodule Tcp.AsyncServer.ConnectionSupervisor do
   end
 
   def start_child!(connection_child_spec) do
-    {:ok, _child} = DynamicSupervisor.start_child(__MODULE__, connection_child_spec)
+    {:ok, child} = DynamicSupervisor.start_child(__MODULE__, connection_child_spec)
+    child
   end
 
   # Callbacks

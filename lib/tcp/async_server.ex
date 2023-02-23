@@ -104,7 +104,10 @@ defmodule Tcp.AsyncServer do
   def handle_info(:start, {listen_socket, connection_handler_module}) do
     case :gen_tcp.accept(listen_socket, 500) do
       {:ok, socket} ->
-        ConnectionSupervisor.start_child!(connection_handler_module.child_spec(socket))
+        child_pid =
+          ConnectionSupervisor.start_child!(connection_handler_module.child_spec(socket: socket))
+
+        :gen_tcp.controlling_process(socket, child_pid)
 
       {:error, :timeout} ->
         :ok
