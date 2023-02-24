@@ -39,6 +39,33 @@ defmodule Protohackex.Tcp do
     end
   end
 
+  def close_socket(socket) do
+    if Mix.env() == :test do
+      send(socket, :close)
+      :ok
+    else
+      :gen_tcp.close(socket)
+    end
+  end
+
+  def send_to_client(socket, payload) do
+    if Mix.env() == :test do
+      send(socket, {:payload, payload})
+      :ok
+    else
+      :gen_tcp.send(socket, payload)
+    end
+  end
+
+  def close(socket) do
+    if Mix.env() == :test do
+      send(socket, :close)
+      :ok
+    else
+      :gen_tcp.close(socket)
+    end
+  end
+
   # ===
   # Only for testing
   # ===
@@ -48,8 +75,27 @@ defmodule Protohackex.Tcp do
       send(to_pid, {:tcp_closed, socket})
     end
 
-    def send(to_pid, from_socket, payload) do
+    def receive_payload() do
+      receive do
+        {:payload, payload} ->
+          {:ok, payload}
+      after
+        500 ->
+          {:error, :timeout}
+      end
+    end
+
+    @doc """
+    Send a message to the server.
+
+    This works in tandem with `Tcp.receive/2`.
+    """
+    def send_to_server(to_pid, from_socket, payload) do
       send(to_pid, {:receive, from_socket, {:ok, payload}})
+    end
+
+    def send_to_active_server(to_pid, from_socket, payload) do
+      send(to_pid, {:tcp, from_socket, payload})
     end
   end
 end

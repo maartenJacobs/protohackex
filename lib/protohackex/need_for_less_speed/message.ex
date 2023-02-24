@@ -61,4 +61,23 @@ defmodule Protohackex.NeedForLessSpeed.Message do
   def encode_heartbeat() do
     <<65::unsigned-integer-8>>
   end
+
+  # ===
+  # Encoding and decoding for testing
+  # ===
+
+  def encode_camera_id(road_id, mile, limit_mph) do
+    <<128::unsigned-integer-8, road_id::unsigned-integer-16, mile::unsigned-integer-16,
+      limit_mph::unsigned-integer-16>>
+  end
+
+  def encode_dispatcher_id(roads) do
+    rest =
+      for road <- roads, reduce: <<>> do
+        rest ->
+          rest <> <<road::unsigned-integer-16>>
+      end
+
+    <<129::unsigned-integer-8, length(roads)::unsigned-integer-8>> <> rest
+  end
 end

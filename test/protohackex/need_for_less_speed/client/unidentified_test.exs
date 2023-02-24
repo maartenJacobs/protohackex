@@ -22,7 +22,7 @@ defmodule Protohackex.NeedForLessSpeed.Client.UnidentifiedTest do
       <<128::unsigned-integer-8, 42::unsigned-integer-16, 8::unsigned-integer-16,
         60::unsigned-integer-16>>
 
-    Tcp.send(client, self(), camera_id_message)
+    Tcp.send_to_server(client, self(), camera_id_message)
 
     assert_died client, 500, "Unidentified client did not die after client identification"
 

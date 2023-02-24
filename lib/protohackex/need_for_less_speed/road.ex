@@ -1,6 +1,7 @@
 defmodule Protohackex.NeedForLessSpeed.Road do
   use GenServer
 
+  alias Protohackex.NeedForLessSpeed.Message
   alias Protohackex.Tcp
   alias Protohackex.NeedForLessSpeed.BufferedSocket
   alias Protohackex.NeedForLessSpeed.SpeedChecker
@@ -54,7 +55,10 @@ defmodule Protohackex.NeedForLessSpeed.Road do
     {:ok, %__MODULE__{road_id: road_id}}
   end
 
-  def handle_info({:tcp, _camera_socket, _payload}, %__MODULE__{} = state) do
+  def handle_info({:tcp, camera_socket, payload}, %__MODULE__{} = state) do
+    {state, message} = record_payload(state, camera_socket, payload)
+    state = process_message(state, camera_socket, message)
+
     {:noreply, state}
   end
 
@@ -93,5 +97,26 @@ defmodule Protohackex.NeedForLessSpeed.Road do
       speed_checker: SpeedChecker.remove_camera(state.speed_checker, camera_socket),
       camera_clients: Map.delete(state.camera_clients, camera_socket)
     )
+  end
+
+  defp record_payload(state, camera_socket, payload) do
+    {buffered_socket, message} =
+      BufferedSocket.add_payload(state.camera_clients[camera_socket], payload)
+      |> BufferedSocket.extract_message()
+
+    {struct!(state, camera_clients: Map.put(state.camera_clients, camera_socket, buffered_socket)),
+     message}
+  end
+
+  defp process_message(state, camera_socket, {message_type, _})
+       when message_type == :camera_id or message_type == :dispatcher_id do
+    Tcp.send_to_client(camera_socket, Message.encode_error("you're already a camera, buddy"))
+    Tcp.close(camera_socket)
+
+    deregister_camera(state, camera_socket)
+  end
+
+  defp process_message(state, _camera_socket, :unknown) do
+    state
   end
 end
