@@ -40,6 +40,17 @@ defmodule Protohackex.NeedForLessSpeed.SpeedChecker do
     %{checker | camera_positions: new_cameras}
   end
 
+  @type violation :: %{
+          road: integer(),
+          plate: plate(),
+          mile1: camera_road_offset(),
+          timestamp1: non_neg_integer(),
+          mile2: camera_road_offset(),
+          timestamp2: non_neg_integer(),
+          speed_mph: non_neg_integer()
+        }
+
+  @spec add_observation(t(), camera_id(), plate(), non_neg_integer()) :: {t(), [violation()]}
   def add_observation(%__MODULE__{} = checker, camera_id, plate, timestamp) do
     checker =
       add_observation_in_order(checker, plate, %{camera_id: camera_id, timestamp: timestamp})

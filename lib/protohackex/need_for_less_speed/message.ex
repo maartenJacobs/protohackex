@@ -44,6 +44,8 @@ defmodule Protohackex.NeedForLessSpeed.Message do
   end
 
   def encode_ticket(plate, road, mile1, mile2, timestamp1, timestamp2, speed_mph) do
+    road = Integer.to_string(road)
+
     <<
       33::unsigned-integer-8,
       String.length(plate)::unsigned-integer-8,
@@ -79,5 +81,10 @@ defmodule Protohackex.NeedForLessSpeed.Message do
       end
 
     <<129::unsigned-integer-8, length(roads)::unsigned-integer-8>> <> rest
+  end
+
+  def encode_plate(plate, timestamp) do
+    <<32::unsigned-integer-8, String.length(plate)::unsigned-integer-8,
+      plate::binary-size(String.length(plate)), timestamp::unsigned-integer-32>>
   end
 end

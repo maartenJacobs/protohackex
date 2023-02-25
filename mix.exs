@@ -30,8 +30,10 @@ defmodule Protohackex.MixProject do
     [
       up: ["deps.get", "compile", "run --no-halt"],
       shell: ["deps.get", "compile", "run --no-start"],
-      # `--no-start` is needed to avoid global registry
-      test: ["test --no-start"]
+      test: ["test --no-start --exclude integration"],
+      # Run the integration tests with `MIX_ENV=dev mix integration`.
+      # TODO: improve `Tcp` so I can run this along with `mix test`.
+      integration: ["test --only integration"]
     ]
   end
 end
