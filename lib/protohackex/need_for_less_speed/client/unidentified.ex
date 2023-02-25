@@ -31,7 +31,7 @@ defmodule Protohackex.NeedForLessSpeed.Client.Unidentified do
   # GenServer callbacks
 
   def init({socket, registry}) do
-    Logger.info("Unidentified client #{inspect(socket)} connected")
+    Logger.info("Unidentified client connected", socket: inspect(socket))
     send(self(), :receive)
     {:ok, %__MODULE__{buffered_socket: BufferedSocket.new(socket), registry: registry}}
   end

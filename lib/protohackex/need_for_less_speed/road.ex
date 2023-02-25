@@ -56,20 +56,28 @@ defmodule Protohackex.NeedForLessSpeed.Road do
   end
 
   def handle_info({:tcp, camera_socket, payload}, %__MODULE__{} = state) do
-    {state, message} = record_payload(state, camera_socket, payload)
-    state = process_message(state, camera_socket, message)
+    state =
+      state
+      |> record_payload(camera_socket, payload)
+      |> process_all_messages(camera_socket)
 
     {:noreply, state}
   end
 
   def handle_info({:tcp_closed, camera_socket}, %__MODULE__{} = state) do
-    Logger.info("Camera #{inspect(camera_socket)} disconnected")
+    Logger.info("Camera disconnected", socket: inspect(camera_socket))
     {:noreply, deregister_camera(state, camera_socket)}
   end
 
   def handle_cast({:add_camera, buffered_socket, camera}, %__MODULE__{} = state) do
-    Logger.info("Camera #{inspect(buffered_socket.socket)} connected")
-    {:noreply, register_camera(state, buffered_socket, camera)}
+    Logger.info("Camera connected", socket: inspect(buffered_socket.socket))
+
+    state =
+      state
+      |> register_camera(buffered_socket, camera)
+      |> process_all_messages(buffered_socket.socket)
+
+    {:noreply, state}
   end
 
   def handle_call(:connected_cameras, _from, %__MODULE__{} = state) do
@@ -100,16 +108,27 @@ defmodule Protohackex.NeedForLessSpeed.Road do
   end
 
   defp record_payload(state, camera_socket, payload) do
-    {buffered_socket, message} =
-      BufferedSocket.add_payload(state.camera_clients[camera_socket], payload)
-      |> BufferedSocket.extract_message()
+    buffered_socket = BufferedSocket.add_payload(state.camera_clients[camera_socket], payload)
 
-    {struct!(state, camera_clients: Map.put(state.camera_clients, camera_socket, buffered_socket)),
-     message}
+    struct!(state, camera_clients: Map.put(state.camera_clients, camera_socket, buffered_socket))
+  end
+
+  defp process_all_messages(state, camera_socket) do
+    {buffered_socket, messages} =
+      BufferedSocket.extract_all_messages(state.camera_clients[camera_socket])
+
+    state =
+      struct!(state, camera_clients: Map.put(state.camera_clients, camera_socket, buffered_socket))
+
+    for message <- messages, reduce: state do
+      state ->
+        process_message(state, camera_socket, message)
+    end
   end
 
   defp process_message(state, camera_socket, {message_type, _})
        when message_type == :camera_id or message_type == :dispatcher_id do
+    Logger.info("Camera forcefully disconnected", socket: inspect(camera_socket))
     Tcp.send_to_client(camera_socket, Message.encode_error("you're already a camera, buddy"))
     Tcp.close(camera_socket)
 
