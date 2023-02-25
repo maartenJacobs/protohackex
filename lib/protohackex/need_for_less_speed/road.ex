@@ -126,6 +126,18 @@ defmodule Protohackex.NeedForLessSpeed.Road do
     end
   end
 
+  defp process_message(%__MODULE__{} = state, camera_socket, {:plate, plate, timestamp}) do
+    {checker, violations} =
+      SpeedChecker.add_observation(state.speed_checker, camera_socket, plate, timestamp)
+
+    # TODO: do something with the detected violations.
+    Logger.info("Plate detected and found #{length(violations)} violations",
+      socket: inspect(camera_socket)
+    )
+
+    struct!(state, speed_checker: checker)
+  end
+
   defp process_message(state, camera_socket, {message_type, _})
        when message_type == :camera_id or message_type == :dispatcher_id do
     Logger.info("Camera forcefully disconnected", socket: inspect(camera_socket))
