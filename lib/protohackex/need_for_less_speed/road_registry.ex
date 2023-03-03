@@ -22,7 +22,7 @@ defmodule Protohackex.NeedForLessSpeed.RoadRegistry do
     GenServer.start_link(__MODULE__, client_supervisor, name: name)
   end
 
-  @spec get_road(pid() | atom(), any()) :: port()
+  @spec get_road(pid() | atom(), any()) :: pid()
   def get_road(registry, road_id) do
     GenServer.call(registry, {:get_road, road_id})
   end

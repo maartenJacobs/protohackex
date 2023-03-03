@@ -1,6 +1,7 @@
 defmodule Protohackex.NeedForLessSpeed.BufferedSocket do
   alias Protohackex.NeedForLessSpeed.Message
 
+  @type t :: %__MODULE__{socket: any(), buffer: binary()}
   defstruct [:socket, :buffer]
 
   def new(socket) do
