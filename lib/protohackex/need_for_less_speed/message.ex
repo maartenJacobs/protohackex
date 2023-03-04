@@ -31,7 +31,7 @@ defmodule Protohackex.NeedForLessSpeed.Message do
 
       <<129::unsigned-integer-8, num_roads::unsigned-integer-8, roads::binary-size(num_roads * 2),
         rest::binary>> ->
-        roads = Protohackex.BitString.chunk_bitstring_every(roads, 2)
+        roads = decode_roads(roads)
         {{:dispatcher_id, roads}, rest}
 
       _ ->
@@ -62,6 +62,15 @@ defmodule Protohackex.NeedForLessSpeed.Message do
 
   def encode_heartbeat() do
     <<65::unsigned-integer-8>>
+  end
+
+  defp decode_roads(roads) do
+    {road_chunks, ""} = Protohackex.BitString.chunk_bitstring_every(roads, 2)
+
+    for road_chunk <- road_chunks do
+      <<road_id::unsigned-integer-16>> = road_chunk
+      road_id
+    end
   end
 
   # ===
