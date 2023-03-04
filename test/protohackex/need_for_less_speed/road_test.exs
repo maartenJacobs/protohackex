@@ -8,7 +8,7 @@ defmodule Protohackex.NeedForLessSpeed.RoadTest do
 
   # Smoke test for now.
   test "cameras can connect and disconnect" do
-    road_pid = start_link_supervised!({Road, 42})
+    road_pid = start_link_supervised!({Road, [road_id: 42]})
 
     Road.add_camera(road_pid, BufferedSocket.new(self()), %{
       mile: 8,
@@ -23,7 +23,7 @@ defmodule Protohackex.NeedForLessSpeed.RoadTest do
   end
 
   test "cameras cannot re-identify as dispatchers" do
-    road_pid = start_link_supervised!({Road, 42})
+    road_pid = start_link_supervised!({Road, [road_id: 42]})
 
     Road.add_camera(road_pid, BufferedSocket.new(self()), %{
       mile: 8,
@@ -38,7 +38,7 @@ defmodule Protohackex.NeedForLessSpeed.RoadTest do
   end
 
   test "cameras cannot identify again as cameras" do
-    road_pid = start_link_supervised!({Road, 42})
+    road_pid = start_link_supervised!({Road, [road_id: 42]})
 
     Road.add_camera(road_pid, BufferedSocket.new(self()), %{
       mile: 8,

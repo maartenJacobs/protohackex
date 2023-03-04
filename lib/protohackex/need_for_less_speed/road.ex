@@ -1,24 +1,29 @@
 defmodule Protohackex.NeedForLessSpeed.Road do
   use GenServer
 
-  alias Protohackex.NeedForLessSpeed.Message
   alias Protohackex.Tcp
-  alias Protohackex.NeedForLessSpeed.BufferedSocket
-  alias Protohackex.NeedForLessSpeed.SpeedChecker
+  alias Protohackex.NeedForLessSpeed.{BufferedSocket, Message, RoadRegistry, SpeedChecker}
 
   require Logger
 
+  @type road_id :: non_neg_integer()
+  @type camera_road_offset :: integer()
+  @type plate :: String.t()
+
   @type t :: %__MODULE__{
-          road_id: integer(),
+          road_registry: pid() | atom(),
+          road_id: road_id(),
           speed_checker: SpeedChecker.t(),
           camera_clients: %{any() => BufferedSocket.t()}
         }
-  defstruct [:road_id, speed_checker: %SpeedChecker{}, camera_clients: %{}]
+  defstruct [:road_registry, :road_id, speed_checker: %SpeedChecker{}, camera_clients: %{}]
 
   # Interface
 
-  def start_link(road_id) do
-    GenServer.start_link(__MODULE__, road_id)
+  def start_link(opts) do
+    road_id = Keyword.fetch!(opts, :road_id)
+    road_registry = Keyword.get(opts, :road_registry, RoadRegistry)
+    GenServer.start_link(__MODULE__, {road_id, road_registry})
   end
 
   @doc """
@@ -35,7 +40,7 @@ defmodule Protohackex.NeedForLessSpeed.Road do
           mile: non_neg_integer(),
           limit_mph: non_neg_integer(),
           # Superfluous but could be used for double checking.
-          road: non_neg_integer()
+          road: road_id()
         }
 
   @spec add_camera(pid(), BufferedSocket.t(), camera()) :: :ok
@@ -51,8 +56,8 @@ defmodule Protohackex.NeedForLessSpeed.Road do
 
   # GenServer callbacks
 
-  def init(road_id) do
-    {:ok, %__MODULE__{road_id: road_id}}
+  def init({road_id, road_registry}) do
+    {:ok, %__MODULE__{road_id: road_id, road_registry: road_registry}}
   end
 
   def handle_info({:tcp, camera_socket, payload}, %__MODULE__{} = state) do
@@ -130,10 +135,13 @@ defmodule Protohackex.NeedForLessSpeed.Road do
     {checker, violations} =
       SpeedChecker.add_observation(state.speed_checker, camera_socket, plate, timestamp)
 
-    # TODO: do something with the detected violations.
     Logger.info("Plate detected and found #{length(violations)} violations",
       socket: inspect(camera_socket)
     )
+
+    for violation <- violations do
+      RoadRegistry.dispatch_ticket(state.road_registry, violation)
+    end
 
     struct!(state, speed_checker: checker)
   end

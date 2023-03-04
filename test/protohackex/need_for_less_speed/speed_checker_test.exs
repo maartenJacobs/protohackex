@@ -1,7 +1,7 @@
 defmodule Protohackex.NeedForLessSpeed.SpeedCheckerTest do
   use ExUnit.Case
   doctest Protohackex.NeedForLessSpeed.SpeedChecker
-  alias Protohackex.NeedForLessSpeed.SpeedChecker
+  alias Protohackex.NeedForLessSpeed.{SpeedChecker, Violation}
 
   test "detects speed violation" do
     checker =
@@ -13,7 +13,7 @@ defmodule Protohackex.NeedForLessSpeed.SpeedCheckerTest do
     {_checker, violations} = SpeedChecker.add_observation(checker, 2, "UN1X", 45)
 
     assert violations == [
-             %{
+             %Violation{
                mile1: 8,
                mile2: 9,
                plate: "UN1X",
@@ -37,7 +37,7 @@ defmodule Protohackex.NeedForLessSpeed.SpeedCheckerTest do
     {_checker, violations} = SpeedChecker.add_observation(checker, 2, "UN1X", 45)
 
     assert violations == [
-             %{
+             %Violation{
                mile1: 8,
                mile2: 9,
                plate: "UN1X",
@@ -46,7 +46,7 @@ defmodule Protohackex.NeedForLessSpeed.SpeedCheckerTest do
                road: 123,
                speed_mph: 80
              },
-             %{
+             %Violation{
                mile1: 9,
                mile2: 10,
                plate: "UN1X",

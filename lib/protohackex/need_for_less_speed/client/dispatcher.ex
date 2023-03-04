@@ -6,7 +6,7 @@ defmodule Protohackex.NeedForLessSpeed.Client.Dispatcher do
   use GenServer, restart: :transient
 
   alias Protohackex.Tcp
-  alias Protohackex.NeedForLessSpeed.{BufferedSocket, Message}
+  alias Protohackex.NeedForLessSpeed.{BufferedSocket, Message, Violation}
 
   require Logger
 
@@ -22,12 +22,27 @@ defmodule Protohackex.NeedForLessSpeed.Client.Dispatcher do
     GenServer.start_link(__MODULE__, {socket, roads, registry})
   end
 
+  @spec send_ticket(pid() | atom(), Violation.t()) :: :ok
+  def send_ticket(dispatcher_id, violation) do
+    GenServer.cast(dispatcher_id, {:send_ticket, violation})
+  end
+
   # GenServer callbacks
 
   def init({buffered_socket, roads, registery}) do
     Logger.info("Dispatcher connected", socket: inspect(buffered_socket.socket))
     state = %__MODULE__{buffered_socket: buffered_socket, roads: roads, registry: registery}
     {:ok, state}
+  end
+
+  def handle_cast({:send_ticket, violation}, %__MODULE__{} = state) do
+    Logger.info("Sending ticket for violation: #{inspect(violation)}",
+      socket: inspect(state.buffered_socket.socket)
+    )
+
+    Tcp.send_to_client(state.buffered_socket.socket, Message.encode_ticket(violation))
+
+    {:noreply, state}
   end
 
   def handle_info({:tcp, _socket, payload}, %__MODULE__{} = state) do

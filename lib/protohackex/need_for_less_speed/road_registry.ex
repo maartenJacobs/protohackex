@@ -5,13 +5,15 @@ defmodule Protohackex.NeedForLessSpeed.RoadRegistry do
 
   use GenServer
 
-  alias Protohackex.NeedForLessSpeed.BufferedSocket
-  alias Protohackex.NeedForLessSpeed.Client.Supervisor
+  alias Protohackex.NeedForLessSpeed.{BufferedSocket, Road, Violation}
+  alias Protohackex.NeedForLessSpeed.Client.{Supervisor, Dispatcher}
+
+  @typep road_data :: %{pid: pid(), ticket_queue: [Violation.t()]}
 
   @type t :: %__MODULE__{
           client_supervisor: pid() | atom(),
-          roads: %{any() => pid()},
-          dispatchers: %{any() => [pid()]}
+          roads: %{Road.road_id() => road_data()},
+          dispatchers: %{Road.road_id() => [pid()]}
         }
 
   defstruct [:client_supervisor, :roads, :dispatchers]
@@ -40,6 +42,11 @@ defmodule Protohackex.NeedForLessSpeed.RoadRegistry do
     GenServer.call(registry, {:get_dispatchers, road})
   end
 
+  @spec dispatch_ticket(pid() | atom(), Violation.t()) :: :ok
+  def dispatch_ticket(registry, %Violation{} = violation) do
+    GenServer.cast(registry, {:queue_ticket, violation})
+  end
+
   # GenServer callbacks
 
   def init(client_supervisor) do
@@ -52,10 +59,11 @@ defmodule Protohackex.NeedForLessSpeed.RoadRegistry do
         registry
       else
         {:ok, road_pid} = Supervisor.start_road(registry.client_supervisor, road_id)
-        struct!(registry, roads: Map.put(registry.roads, road_id, road_pid))
+        road_data = %{pid: road_pid, ticket_queue: []}
+        struct!(registry, roads: Map.put(registry.roads, road_id, road_data))
       end
 
-    {:reply, registry.roads[road_id], registry}
+    {:reply, registry.roads[road_id].pid, registry}
   end
 
   def handle_call({:start_dispatcher, socket, roads}, _from, %__MODULE__{} = registry) do
@@ -68,6 +76,43 @@ defmodule Protohackex.NeedForLessSpeed.RoadRegistry do
     {:reply, Map.get(registry.dispatchers, road, []), registry}
   end
 
+  def handle_cast({:queue_ticket, %Violation{} = violation}, %__MODULE__{} = registry) do
+    updated_ticket_queue = [violation | registry.roads[violation.road].ticket_queue]
+
+    updated_road_data =
+      Map.put(registry.roads[violation.road], :ticket_queue, updated_ticket_queue)
+
+    updated_roads = Map.put(registry.roads, violation.road, updated_road_data)
+    registry = struct!(registry, roads: updated_roads)
+
+    # TODO: test with put_in
+
+    send(self(), {:process_queue, violation.road})
+    {:noreply, registry}
+  end
+
+  def handle_info({:process_queue, road}, %__MODULE__{} = registry) do
+    if registry.roads[road] do
+      case Map.get(registry.dispatchers, road, []) do
+        [] ->
+          registry
+
+        [dispatcher | _] ->
+          Enum.each(registry.roads[road].ticket_queue, fn violation ->
+            Dispatcher.send_ticket(dispatcher, violation)
+          end)
+
+          updated_road_data = Map.put(registry.roads[road], :ticket_queue, [])
+          updated_roads = Map.put(registry.roads, road, updated_road_data)
+          struct!(registry, roads: updated_roads)
+      end
+    else
+      registry
+    end
+
+    {:noreply, registry}
+  end
+
   defp record_dispatcher(%__MODULE__{} = registry, roads, dispatcher_pid) do
     updated_dispatchers =
       for road <- roads, reduce: registry.dispatchers do
@@ -76,7 +121,9 @@ defmodule Protohackex.NeedForLessSpeed.RoadRegistry do
           Map.put(dispatchers, road, road_dispatchers)
       end
 
-    # TODO: Trigger queued tickets
+    for road <- roads do
+      send(self(), {:process_queue, road})
+    end
 
     struct!(registry, dispatchers: updated_dispatchers)
   end

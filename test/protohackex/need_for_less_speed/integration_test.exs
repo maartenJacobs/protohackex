@@ -32,8 +32,8 @@ defmodule Protohackex.NeedForLessSpeed.IntegrationTest do
     send!(camera_2_port, Message.encode_plate(plate, 45))
 
     # 1 ticket should have been issued.
-    assert {:ok, Message.encode_ticket(plate, road_id, 8, 9, 0, 45, 80)} ==
-             :gen_tcp.recv(dispatcher_port, 1000, 1000)
+    {:ok, message} = :gen_tcp.recv(dispatcher_port, 0, 1000)
+    assert message == Message.encode_ticket(plate, road_id, 8, 9, 0, 45, 80)
   end
 
   defp send!(port, message) do

@@ -3,11 +3,11 @@ defmodule Protohackex.NeedForLessSpeed.SpeedChecker do
   Checks for speed violations on a single road with 2 or more cameras.
   """
 
+  alias Protohackex.NeedForLessSpeed.{Road, Violation}
+
   @tolerance_mph 0.5
 
-  @type plate :: String.t()
   @type camera_id :: any()
-  @type camera_road_offset :: integer()
   @typep observation :: %{
            camera_id: camera_id(),
            timestamp: non_neg_integer()
@@ -16,9 +16,9 @@ defmodule Protohackex.NeedForLessSpeed.SpeedChecker do
   @type t :: %__MODULE__{
           road: integer() | nil,
           speed_limit_mph: integer() | nil,
-          camera_positions: %{camera_id() => camera_road_offset()},
+          camera_positions: %{camera_id() => Road.camera_road_offset()},
           observations: %{
-            plate() => [observation()]
+            Road.plate() => [observation()]
           }
         }
 
@@ -40,17 +40,8 @@ defmodule Protohackex.NeedForLessSpeed.SpeedChecker do
     %{checker | camera_positions: new_cameras}
   end
 
-  @type violation :: %{
-          road: integer(),
-          plate: plate(),
-          mile1: camera_road_offset(),
-          timestamp1: non_neg_integer(),
-          mile2: camera_road_offset(),
-          timestamp2: non_neg_integer(),
-          speed_mph: non_neg_integer()
-        }
-
-  @spec add_observation(t(), camera_id(), plate(), non_neg_integer()) :: {t(), [violation()]}
+  @spec add_observation(t(), camera_id(), Road.plate(), non_neg_integer()) ::
+          {t(), [Violation.t()]}
   def add_observation(%__MODULE__{} = checker, camera_id, plate, timestamp) do
     checker =
       add_observation_in_order(checker, plate, %{camera_id: camera_id, timestamp: timestamp})
@@ -110,7 +101,7 @@ defmodule Protohackex.NeedForLessSpeed.SpeedChecker do
     speed_mph = distance_travelled_miles / time_elapsed_sec * 3600.0
 
     if speed_mph >= checker.speed_limit_mph + @tolerance_mph do
-      %{
+      %Violation{
         road: checker.road,
         plate: plate,
         mile1: checker.camera_positions[earlier_observation.camera_id],

@@ -10,7 +10,7 @@ defmodule Protohackex.NeedForLessSpeed.Client.Supervisor do
   end
 
   def start_road(supervisor_pid, road_id) do
-    DynamicSupervisor.start_child(supervisor_pid, {Road, road_id})
+    DynamicSupervisor.start_child(supervisor_pid, {Road, [road_id: road_id]})
   end
 
   def start_dispatcher(supervisor_pid, socket, roads) do

@@ -6,6 +6,7 @@ defmodule Protohackex.NeedForLessSpeed.Message do
   surprisingly easy to implement with pattern matching.
   """
 
+  alias Protohackex.NeedForLessSpeed.Violation
   alias Protohackex.NeedForLessSpeed.Road
 
   @type message_type ::
@@ -41,6 +42,18 @@ defmodule Protohackex.NeedForLessSpeed.Message do
 
   def encode_error(message) do
     <<10::unsigned-integer-8, String.length(message)::unsigned-integer-8, message::binary>>
+  end
+
+  def encode_ticket(%Violation{} = violation) do
+    encode_ticket(
+      violation.plate,
+      violation.road,
+      violation.mile1,
+      violation.mile2,
+      violation.timestamp1,
+      violation.timestamp2,
+      violation.speed_mph
+    )
   end
 
   def encode_ticket(plate, road, mile1, mile2, timestamp1, timestamp2, speed_mph) do
