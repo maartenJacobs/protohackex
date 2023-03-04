@@ -12,6 +12,7 @@ defmodule Protohackex.NeedForLessSpeed.BufferedSocket do
     struct!(buffered_socket, buffer: buffered_socket.buffer <> payload)
   end
 
+  @spec extract_message(t()) :: {t(), Message.message_type()}
   def extract_message(%__MODULE__{} = buffered_socket) do
     {message, buffer_rest} = Message.parse_message(buffered_socket.buffer)
     {struct!(buffered_socket, buffer: buffer_rest), message}

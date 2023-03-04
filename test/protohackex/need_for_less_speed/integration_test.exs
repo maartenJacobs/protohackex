@@ -33,7 +33,7 @@ defmodule Protohackex.NeedForLessSpeed.IntegrationTest do
 
     # 1 ticket should have been issued.
     assert {:ok, Message.encode_ticket(plate, road_id, 8, 9, 0, 45, 80)} ==
-             :gen_tcp.recv(dispatcher_port, 1000)
+             :gen_tcp.recv(dispatcher_port, 1000, 1000)
   end
 
   defp send!(port, message) do

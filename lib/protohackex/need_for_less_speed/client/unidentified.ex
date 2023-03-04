@@ -49,7 +49,10 @@ defmodule Protohackex.NeedForLessSpeed.Client.Unidentified do
           case message do
             {:camera_id, camera} ->
               register_camera(state, camera)
+              exit(:normal)
 
+            {:dispatcher_id, roads} ->
+              register_dispatcher(state, roads)
               exit(:normal)
 
             :unknown ->
@@ -73,5 +76,11 @@ defmodule Protohackex.NeedForLessSpeed.Client.Unidentified do
   defp register_camera(%__MODULE__{} = state, camera) do
     RoadRegistry.get_road(state.registry, camera.road)
     |> Road.add_camera(state.buffered_socket, camera)
+  end
+
+  defp register_dispatcher(%__MODULE__{} = state, roads) do
+    dispatcher_pid = RoadRegistry.start_dispatcher(state.registry, state.buffered_socket, roads)
+    Tcp.switch_to_active_mode(state.buffered_socket.socket, dispatcher_pid)
+    :ok
   end
 end

@@ -24,7 +24,7 @@ defmodule Protohackex.Tcp do
     end
   end
 
-  def switch_to_active_mode(socket, road_pid) do
+  def switch_to_active_mode(socket, pid) do
     if Mix.env() == :test do
       # When testing we send messages directly to processes instead of relying on
       # `:inet` behaviour. In that case we can skip any socket operations like these.
@@ -34,7 +34,7 @@ defmodule Protohackex.Tcp do
       # between processes a lot (in my case: accept server -> unidentified -> road).
       # Each step of the way, make sure `:gen_tcp.controlling_process/2` is called
       # when handing the socket.s
-      :ok = :gen_tcp.controlling_process(socket, road_pid)
+      :ok = :gen_tcp.controlling_process(socket, pid)
       :inet.setopts(socket, active: true)
     end
   end

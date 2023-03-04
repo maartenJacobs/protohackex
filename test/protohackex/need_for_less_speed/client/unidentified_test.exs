@@ -1,5 +1,6 @@
 defmodule Protohackex.NeedForLessSpeed.Client.UnidentifiedTest do
   use ExUnit.Case
+  alias Protohackex.NeedForLessSpeed.Message
   alias Protohackex.NeedForLessSpeed.RoadRegistry
   alias Protohackex.Tcp
 
@@ -29,6 +30,27 @@ defmodule Protohackex.NeedForLessSpeed.Client.UnidentifiedTest do
     road = RoadRegistry.get_road(registry, self())
     assert is_pid(road)
     assert Process.alive?(road)
+  end
+
+  test "identify as dispatcher", %{client: client, registry: registry} do
+    roads = [29, 208, 10883]
+    dispatcher_id_message = Message.encode_dispatcher_id(roads)
+
+    Tcp.send_to_server(client, self(), dispatcher_id_message)
+
+    assert_died client, 500, "Unidentified client did not die after client identification"
+
+    dispatchers =
+      for road <- roads do
+        RoadRegistry.get_dispatchers(registry, road)
+      end
+      |> List.flatten()
+      |> Enum.uniq()
+
+    assert length(dispatchers) == 1
+    [dispatcher] = dispatchers
+    assert is_pid(dispatcher)
+    assert Process.alive?(dispatcher)
   end
 
   defp assert_died(pid, timeout, failure_message) do
