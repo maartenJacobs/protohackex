@@ -92,23 +92,24 @@ defmodule Protohackex.NeedForLessSpeed.RoadRegistry do
   end
 
   def handle_info({:process_queue, road}, %__MODULE__{} = registry) do
-    if registry.roads[road] do
-      case Map.get(registry.dispatchers, road, []) do
-        [] ->
-          registry
+    registry =
+      if registry.roads[road] do
+        case Map.get(registry.dispatchers, road, []) do
+          [] ->
+            registry
 
-        [dispatcher | _] ->
-          Enum.each(registry.roads[road].ticket_queue, fn violation ->
-            Dispatcher.send_ticket(dispatcher, violation)
-          end)
+          [dispatcher | _] ->
+            Enum.each(registry.roads[road].ticket_queue, fn violation ->
+              Dispatcher.send_ticket(dispatcher, violation)
+            end)
 
-          updated_road_data = Map.put(registry.roads[road], :ticket_queue, [])
-          updated_roads = Map.put(registry.roads, road, updated_road_data)
-          struct!(registry, roads: updated_roads)
+            updated_road_data = Map.put(registry.roads[road], :ticket_queue, [])
+            updated_roads = Map.put(registry.roads, road, updated_road_data)
+            struct!(registry, roads: updated_roads)
+        end
+      else
+        registry
       end
-    else
-      registry
-    end
 
     {:noreply, registry}
   end
