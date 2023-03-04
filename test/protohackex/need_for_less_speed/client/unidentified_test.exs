@@ -25,7 +25,11 @@ defmodule Protohackex.NeedForLessSpeed.Client.UnidentifiedTest do
 
     Tcp.send_to_server(client, self(), camera_id_message)
 
-    assert_died client, 500, "Unidentified client did not die after client identification"
+    ProcessHelper.assert_died(
+      client,
+      500,
+      "Unidentified client did not die after client identification"
+    )
 
     road = RoadRegistry.get_road(registry, self())
     assert is_pid(road)
@@ -38,7 +42,11 @@ defmodule Protohackex.NeedForLessSpeed.Client.UnidentifiedTest do
 
     Tcp.send_to_server(client, self(), dispatcher_id_message)
 
-    assert_died client, 500, "Unidentified client did not die after client identification"
+    ProcessHelper.assert_died(
+      client,
+      500,
+      "Unidentified client did not die after client identification"
+    )
 
     dispatchers =
       for road <- roads do
@@ -51,17 +59,5 @@ defmodule Protohackex.NeedForLessSpeed.Client.UnidentifiedTest do
     [dispatcher] = dispatchers
     assert is_pid(dispatcher)
     assert Process.alive?(dispatcher)
-  end
-
-  defp assert_died(pid, timeout, failure_message) do
-    if timeout < 0 do
-      refute false, failure_message
-    else
-      Process.sleep(10)
-
-      if Process.alive?(pid) do
-        assert_died(pid, timeout - 10, failure_message)
-      end
-    end
   end
 end

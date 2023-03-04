@@ -18,8 +18,20 @@ defmodule Protohackex.NeedForLessSpeed.BufferedSocket do
     {struct!(buffered_socket, buffer: buffer_rest), message}
   end
 
+  @spec extract_all_messages(t()) :: {t(), [Message.message_type()]}
   def extract_all_messages(%__MODULE__{} = buffered_socket) do
     do_extract_all(buffered_socket)
+  end
+
+  @doc """
+  Extract all messages from the buffer and send them as messages.
+  """
+  @spec send_all_messages(t()) :: t()
+  @spec send_all_messages(t(), pid()) :: t()
+  def send_all_messages(%__MODULE__{} = buffered_socket, target_pid \\ self()) do
+    {buffered_socket, messages} = extract_all_messages(buffered_socket)
+    Enum.each(messages, &send(target_pid, {:socket_message, &1}))
+    buffered_socket
   end
 
   defp do_extract_all(%__MODULE__{} = buffered_socket, messages \\ []) do

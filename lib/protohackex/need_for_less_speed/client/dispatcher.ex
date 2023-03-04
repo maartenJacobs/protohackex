@@ -5,6 +5,9 @@ defmodule Protohackex.NeedForLessSpeed.Client.Dispatcher do
 
   use GenServer, restart: :transient
 
+  alias Protohackex.Tcp
+  alias Protohackex.NeedForLessSpeed.{BufferedSocket, Message}
+
   require Logger
 
   defstruct [:buffered_socket, :roads, :registry]
@@ -27,11 +30,28 @@ defmodule Protohackex.NeedForLessSpeed.Client.Dispatcher do
     {:ok, state}
   end
 
-  def handle_info({:tcp, _socket, _payload}, %__MODULE__{} = state) do
+  def handle_info({:tcp, _socket, payload}, %__MODULE__{} = state) do
+    buffered_socket =
+      BufferedSocket.add_payload(state.buffered_socket, payload)
+      |> BufferedSocket.send_all_messages()
+
+    state = struct!(state, buffered_socket: buffered_socket)
     {:noreply, state}
   end
 
   def handle_info({:tcp_closed, _socket}, %__MODULE__{} = state) do
     {:noreply, state}
+  end
+
+  def handle_info({:socket_message, {message_type, _}}, %__MODULE__{} = state)
+      when message_type == :camera_id or message_type == :dispatcher_id do
+    force_disconnect(state.buffered_socket.socket, "you're already a dispatcher, buddy")
+    {:stop, :normal, state}
+  end
+
+  defp force_disconnect(socket, message) do
+    Logger.info("Dispatcher forcefully disconnected", socket: inspect(socket))
+    Tcp.send_to_client(socket, Message.encode_error(message))
+    Tcp.close(socket)
   end
 end
