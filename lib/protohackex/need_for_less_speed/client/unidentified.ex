@@ -40,27 +40,12 @@ defmodule Protohackex.NeedForLessSpeed.Client.Unidentified do
     updated_state =
       case Tcp.receive(state.buffered_socket.socket, 500) do
         {:ok, payload} ->
-          {buffered_socket, message} =
+          buffered_socket =
             BufferedSocket.add_payload(state.buffered_socket, payload)
-            |> BufferedSocket.extract_message()
-
-          state = struct!(state, buffered_socket: buffered_socket)
-
-          case message do
-            {:camera_id, camera} ->
-              register_camera(state, camera)
-              exit(:normal)
-
-            {:dispatcher_id, roads} ->
-              register_dispatcher(state, roads)
-              exit(:normal)
-
-            :unknown ->
-              :ok
-          end
+            |> BufferedSocket.send_next_message()
 
           send(self(), :receive)
-          state
+          struct!(state, buffered_socket: buffered_socket)
 
         {:error, :timeout} ->
           send(self(), :receive)
@@ -71,6 +56,20 @@ defmodule Protohackex.NeedForLessSpeed.Client.Unidentified do
       end
 
     {:noreply, updated_state}
+  end
+
+  def handle_info({:socket_message, {:camera_id, camera}}, state) do
+    register_camera(state, camera)
+    {:stop, :normal, state}
+  end
+
+  def handle_info({:socket_message, {:dispatcher_id, roads}}, state) do
+    register_dispatcher(state, roads)
+    {:stop, :normal, state}
+  end
+
+  def handle_info({:socket_message, :unknown}, state) do
+    {:noreply, state}
   end
 
   defp register_camera(%__MODULE__{} = state, camera) do

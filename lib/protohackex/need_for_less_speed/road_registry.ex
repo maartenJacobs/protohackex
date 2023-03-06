@@ -1,6 +1,6 @@
 defmodule Protohackex.NeedForLessSpeed.RoadRegistry do
   @moduledoc """
-  Mapping of road ID to road PID.
+  Central registry of roads and associated dispatchers.
   """
 
   use GenServer
@@ -77,36 +77,31 @@ defmodule Protohackex.NeedForLessSpeed.RoadRegistry do
   end
 
   def handle_cast({:queue_ticket, %Violation{} = violation}, %__MODULE__{} = registry) do
-    updated_ticket_queue = [violation | registry.roads[violation.road].ticket_queue]
-
-    updated_road_data =
-      Map.put(registry.roads[violation.road], :ticket_queue, updated_ticket_queue)
-
-    updated_roads = Map.put(registry.roads, violation.road, updated_road_data)
-    registry = struct!(registry, roads: updated_roads)
-
-    # TODO: test with put_in
+    registry =
+      put_in(
+        registry.roads[violation.road].ticket_queue,
+        [violation | registry.roads[violation.road].ticket_queue]
+      )
 
     send(self(), {:process_queue, violation.road})
     {:noreply, registry}
   end
 
   def handle_info({:process_queue, road}, %__MODULE__{} = registry) do
+    dispatchers = Map.get(registry.dispatchers, road, [])
+
     registry =
-      if registry.roads[road] do
-        case Map.get(registry.dispatchers, road, []) do
-          [] ->
-            registry
+      if registry.roads[road] && !Enum.empty?(dispatchers) do
+        # Implementation detail: we get to pick the dispatcher that will process the ticket.
+        # For consistency sake we just pick the last one to register, which is always added
+        # to the front of the list.
+        [dispatcher | _] = dispatchers
 
-          [dispatcher | _] ->
-            Enum.each(registry.roads[road].ticket_queue, fn violation ->
-              Dispatcher.send_ticket(dispatcher, violation)
-            end)
+        Enum.each(registry.roads[road].ticket_queue, fn violation ->
+          Dispatcher.send_ticket(dispatcher, violation)
+        end)
 
-            updated_road_data = Map.put(registry.roads[road], :ticket_queue, [])
-            updated_roads = Map.put(registry.roads, road, updated_road_data)
-            struct!(registry, roads: updated_roads)
-        end
+        put_in(registry.roads[road].ticket_queue, [])
       else
         registry
       end
@@ -118,8 +113,7 @@ defmodule Protohackex.NeedForLessSpeed.RoadRegistry do
     updated_dispatchers =
       for road <- roads, reduce: registry.dispatchers do
         dispatchers ->
-          road_dispatchers = [dispatcher_pid | Map.get(dispatchers, road, [])]
-          Map.put(dispatchers, road, road_dispatchers)
+          put_in(dispatchers[road], [dispatcher_pid | Map.get(dispatchers, road, [])])
       end
 
     for road <- roads do

@@ -18,6 +18,13 @@ defmodule Protohackex.NeedForLessSpeed.BufferedSocket do
     {struct!(buffered_socket, buffer: buffer_rest), message}
   end
 
+  @spec send_next_message(t()) :: t()
+  def send_next_message(%__MODULE__{} = buffered_socket, target_pid \\ self()) do
+    {buffered_socket, message} = extract_message(buffered_socket)
+    send(target_pid, {:socket_message, message})
+    buffered_socket
+  end
+
   @spec extract_all_messages(t()) :: {t(), [Message.message_type()]}
   def extract_all_messages(%__MODULE__{} = buffered_socket) do
     do_extract_all(buffered_socket)
