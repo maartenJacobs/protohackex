@@ -11,34 +11,37 @@ defmodule Protohackex.NeedForLessSpeed.Client.Unidentified do
   use GenServer, restart: :transient
 
   alias Protohackex.Tcp
-  alias Protohackex.NeedForLessSpeed.Road
-  alias Protohackex.NeedForLessSpeed.RoadRegistry
-  alias Protohackex.NeedForLessSpeed.BufferedSocket
+  alias Protohackex.NeedForLessSpeed.{BufferedSocket, Heart, Message, Road, RoadRegistry}
 
   require Logger
 
-  defstruct [:buffered_socket, :registry]
+  defstruct [:buffered_socket, :heart, :registry]
 
   # Interface
 
   def start_link(opts) do
     socket = Keyword.fetch!(opts, :socket)
     registry = Keyword.get(opts, :registry, RoadRegistry)
+    heart = Keyword.get(opts, :heart, Heart)
 
-    GenServer.start_link(__MODULE__, {socket, registry})
+    GenServer.start_link(__MODULE__, {socket, registry, heart})
   end
 
   # GenServer callbacks
 
-  def init({socket, registry}) do
+  def init({socket, registry, heart}) do
     Logger.info("Unidentified client connected", socket: inspect(socket))
     send(self(), :receive)
-    {:ok, %__MODULE__{buffered_socket: BufferedSocket.new(socket), registry: registry}}
+
+    {:ok,
+     %__MODULE__{buffered_socket: BufferedSocket.new(socket), registry: registry, heart: heart}}
   end
 
   def handle_info(:receive, %__MODULE__{} = state) do
+    # TODO: switch to active mode and confirm that :gen_tcp transfers pending TCP messages
+    # to new controlling process.
     updated_state =
-      case Tcp.receive(state.buffered_socket.socket, 500) do
+      case Tcp.receive(state.buffered_socket.socket, 100) do
         {:ok, payload} ->
           buffered_socket =
             BufferedSocket.add_payload(state.buffered_socket, payload)
@@ -66,6 +69,32 @@ defmodule Protohackex.NeedForLessSpeed.Client.Unidentified do
   def handle_info({:socket_message, {:dispatcher_id, roads}}, state) do
     register_dispatcher(state, roads)
     {:stop, :normal, state}
+  end
+
+  def handle_info({:socket_message, {:want_heartbeat, interval_ms}}, state) do
+    # Unlike the other handled message types, heartbeat does not change the flow of the
+    # client, e.g. it doesn't identify the client. Therefore other messages may follow
+    # it that need processing.
+    buffered_socket = BufferedSocket.send_next_message(state.buffered_socket)
+    state = struct!(state, buffered_socket: buffered_socket)
+
+    socket = state.buffered_socket.socket
+
+    Heart.start_heartbeat(state.heart, socket, interval_ms)
+    |> case do
+      :ok ->
+        {:noreply, state}
+
+      {:error, :already_started} ->
+        Logger.info(
+          "Unidentified client forcibly disconnected because of duplicate heartbeat requests",
+          socket: inspect(socket)
+        )
+
+        Tcp.send_to_client(socket, Message.encode_error("Too many heartbeats"))
+        Tcp.close(socket)
+        {:stop, :normal, state}
+    end
   end
 
   def handle_info({:socket_message, :unknown}, state) do

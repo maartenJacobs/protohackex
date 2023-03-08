@@ -23,8 +23,8 @@ defmodule Protohackex.NeedForLessSpeed.Message do
         plate::binary-size(plate_length), timestamp::unsigned-integer-32, rest::binary>> ->
         {{:plate, plate, timestamp}, rest}
 
-      <<64::unsigned-integer-8, interval::unsigned-integer-32, rest::binary>> ->
-        {{:want_heartbeat, interval}, rest}
+      <<64::unsigned-integer-8, interval_deciseconds::unsigned-integer-32, rest::binary>> ->
+        {{:want_heartbeat, interval_deciseconds * 100}, rest}
 
       <<128::unsigned-integer-8, road::unsigned-integer-16, mile::unsigned-integer-16,
         limit_mph::unsigned-integer-16, rest::binary>> ->
@@ -108,5 +108,9 @@ defmodule Protohackex.NeedForLessSpeed.Message do
   def encode_plate(plate, timestamp) do
     <<32::unsigned-integer-8, String.length(plate)::unsigned-integer-8,
       plate::binary-size(String.length(plate)), timestamp::unsigned-integer-32>>
+  end
+
+  def encode_want_heartbeat(interval_ms) do
+    <<64::unsigned-integer-8, interval_ms |> div(100)::unsigned-integer-32>>
   end
 end

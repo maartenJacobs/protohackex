@@ -2,7 +2,7 @@ defmodule Protohackex.NeedForLessSpeed.Road do
   use GenServer
 
   alias Protohackex.Tcp
-  alias Protohackex.NeedForLessSpeed.{BufferedSocket, Message, RoadRegistry, SpeedChecker}
+  alias Protohackex.NeedForLessSpeed.{BufferedSocket, Heart, Message, RoadRegistry, SpeedChecker}
 
   require Logger
 
@@ -12,18 +12,27 @@ defmodule Protohackex.NeedForLessSpeed.Road do
 
   @type t :: %__MODULE__{
           road_registry: pid() | atom(),
+          heart: pid() | atom(),
           road_id: road_id(),
           speed_checker: SpeedChecker.t(),
           camera_clients: %{any() => BufferedSocket.t()}
         }
-  defstruct [:road_registry, :road_id, speed_checker: %SpeedChecker{}, camera_clients: %{}]
+  defstruct [
+    :road_registry,
+    :heart,
+    :road_id,
+    speed_checker: %SpeedChecker{},
+    camera_clients: %{}
+  ]
 
   # Interface
 
   def start_link(opts) do
     road_id = Keyword.fetch!(opts, :road_id)
     road_registry = Keyword.get(opts, :road_registry, RoadRegistry)
-    GenServer.start_link(__MODULE__, {road_id, road_registry})
+    heart = Keyword.get(opts, :heart, Heart)
+
+    GenServer.start_link(__MODULE__, {road_id, road_registry, heart})
   end
 
   @doc """
@@ -56,8 +65,8 @@ defmodule Protohackex.NeedForLessSpeed.Road do
 
   # GenServer callbacks
 
-  def init({road_id, road_registry}) do
-    {:ok, %__MODULE__{road_id: road_id, road_registry: road_registry}}
+  def init({road_id, road_registry, heart}) do
+    {:ok, %__MODULE__{road_id: road_id, road_registry: road_registry, heart: heart}}
   end
 
   def handle_info({:tcp, camera_socket, payload}, %__MODULE__{} = state) do
@@ -144,6 +153,25 @@ defmodule Protohackex.NeedForLessSpeed.Road do
     end
 
     struct!(state, speed_checker: checker)
+  end
+
+  defp process_message(%__MODULE__{} = state, camera_socket, {:want_heartbeat, interval_ms}) do
+    Heart.start_heartbeat(state.heart, camera_socket, interval_ms)
+    |> case do
+      :ok ->
+        state
+
+      {:error, :already_started} ->
+        Logger.info(
+          "Camera forcibly disconnected because of duplicate heartbeat requests",
+          socket: inspect(camera_socket)
+        )
+
+        Tcp.send_to_client(camera_socket, Message.encode_error("Too many heartbeats"))
+        Tcp.close(camera_socket)
+
+        deregister_camera(state, camera_socket)
+    end
   end
 
   defp process_message(state, camera_socket, {message_type, _})

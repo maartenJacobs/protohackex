@@ -5,6 +5,8 @@ defmodule Protohackex.Application do
     port = Application.get_env(:protohackex, :port)
 
     children = [
+      {Registry, keys: :unique, name: Protohackex.NeedForLessSpeed.Heart.Registry},
+      Protohackex.NeedForLessSpeed.Heart,
       Protohackex.NeedForLessSpeed.Client.Supervisor,
       Protohackex.NeedForLessSpeed.RoadRegistry,
       Tcp.AsyncServer.ConnectionSupervisor,
