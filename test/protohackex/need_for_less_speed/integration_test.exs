@@ -103,7 +103,6 @@ defmodule Protohackex.NeedForLessSpeed.IntegrationTest do
       send!(client_port, Message.encode_want_heartbeat(100))
       send!(client_port, Message.encode_want_heartbeat(200))
 
-      {:ok, _heartbeat} = :gen_tcp.recv(client_port, 0, 150)
       {:ok, message} = :gen_tcp.recv(client_port, 0, 100)
       assert message == Message.encode_error("Too many heartbeats")
     end

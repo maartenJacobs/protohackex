@@ -23,7 +23,7 @@ defmodule Protohackex.NeedForLessSpeed.Client.UnidentifiedTest do
       <<128::unsigned-integer-8, 42::unsigned-integer-16, 8::unsigned-integer-16,
         60::unsigned-integer-16>>
 
-    Tcp.send_to_server(client, self(), camera_id_message)
+    Tcp.send_to_active_server(client, self(), camera_id_message)
 
     ProcessHelper.assert_died(
       client,
@@ -40,7 +40,7 @@ defmodule Protohackex.NeedForLessSpeed.Client.UnidentifiedTest do
     roads = [29, 208, 10883]
     dispatcher_id_message = Message.encode_dispatcher_id(roads)
 
-    Tcp.send_to_server(client, self(), dispatcher_id_message)
+    Tcp.send_to_active_server(client, self(), dispatcher_id_message)
 
     ProcessHelper.assert_died(
       client,
@@ -59,5 +59,17 @@ defmodule Protohackex.NeedForLessSpeed.Client.UnidentifiedTest do
     [dispatcher] = dispatchers
     assert is_pid(dispatcher)
     assert Process.alive?(dispatcher)
+  end
+
+  test "handles invalid messages by disconnecting", %{client: client} do
+    Tcp.send_to_active_server(client, self(), Message.encode_plate("ABC123", 123))
+
+    ProcessHelper.assert_died(
+      client,
+      500,
+      "Unidentified client did not die after invalid message"
+    )
+
+    assert {:ok, <<10::unsigned-integer-8, _rest::binary>>} = Tcp.receive_payload()
   end
 end

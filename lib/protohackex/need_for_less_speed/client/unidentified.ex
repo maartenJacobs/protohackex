@@ -31,34 +31,24 @@ defmodule Protohackex.NeedForLessSpeed.Client.Unidentified do
 
   def init({socket, registry, heart}) do
     Logger.info("Unidentified client connected", socket: inspect(socket))
-    send(self(), :receive)
+    Tcp.switch_to_active_mode(socket)
 
     {:ok,
      %__MODULE__{buffered_socket: BufferedSocket.new(socket), registry: registry, heart: heart}}
   end
 
-  def handle_info(:receive, %__MODULE__{} = state) do
-    # TODO: switch to active mode and confirm that :gen_tcp transfers pending TCP messages
-    # to new controlling process.
-    updated_state =
-      case Tcp.receive(state.buffered_socket.socket, 100) do
-        {:ok, payload} ->
-          buffered_socket =
-            BufferedSocket.add_payload(state.buffered_socket, payload)
-            |> BufferedSocket.send_next_message()
+  def handle_info({:tcp, _socket, payload}, %__MODULE__{} = state) do
+    buffered_socket =
+      BufferedSocket.add_payload(state.buffered_socket, payload)
+      |> BufferedSocket.send_next_message()
 
-          send(self(), :receive)
-          struct!(state, buffered_socket: buffered_socket)
+    state = struct!(state, buffered_socket: buffered_socket)
+    {:noreply, state}
+  end
 
-        {:error, :timeout} ->
-          send(self(), :receive)
-          state
-
-        {:error, _} ->
-          exit(:normal)
-      end
-
-    {:noreply, updated_state}
+  def handle_info({:tcp_closed, _socket}, %__MODULE__{} = state) do
+    Logger.info("Unidentified client disconnected", socket: inspect(state.buffered_socket.socket))
+    {:stop, :normal, state}
   end
 
   def handle_info({:socket_message, {:camera_id, camera}}, state) do
@@ -97,6 +87,17 @@ defmodule Protohackex.NeedForLessSpeed.Client.Unidentified do
     end
   end
 
+  def handle_info({:socket_message, {:plate, _, _}}, state) do
+    Logger.info(
+      "Unidentified client forcibly disconnected because it acts as camera",
+      socket: inspect(state.buffered_socket.socket)
+    )
+
+    Tcp.send_to_client(state.buffered_socket.socket, Message.encode_error("Not a camera, mate"))
+    Tcp.close(state.buffered_socket.socket)
+    {:stop, :normal, state}
+  end
+
   def handle_info({:socket_message, :unknown}, state) do
     {:noreply, state}
   end
@@ -108,7 +109,7 @@ defmodule Protohackex.NeedForLessSpeed.Client.Unidentified do
 
   defp register_dispatcher(%__MODULE__{} = state, roads) do
     dispatcher_pid = RoadRegistry.start_dispatcher(state.registry, state.buffered_socket, roads)
-    Tcp.switch_to_active_mode(state.buffered_socket.socket, dispatcher_pid)
+    Tcp.controlling_process(state.buffered_socket.socket, dispatcher_pid)
     :ok
   end
 end

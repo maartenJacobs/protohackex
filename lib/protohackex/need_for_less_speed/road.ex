@@ -59,7 +59,7 @@ defmodule Protohackex.NeedForLessSpeed.Road do
     # If we reverse the order, we may receive payloads before the camera is registered.
 
     GenServer.cast(road_pid, {:add_camera, buffered_socket, camera})
-    Tcp.switch_to_active_mode(buffered_socket.socket, road_pid)
+    Tcp.controlling_process(buffered_socket.socket, road_pid)
     :ok
   end
 

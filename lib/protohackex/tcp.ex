@@ -24,7 +24,7 @@ defmodule Protohackex.Tcp do
     end
   end
 
-  def switch_to_active_mode(socket, pid) do
+  def controlling_process(socket, pid) do
     if Mix.env() == :test do
       # When testing we send messages directly to processes instead of relying on
       # `:inet` behaviour. In that case we can skip any socket operations like these.
@@ -35,6 +35,15 @@ defmodule Protohackex.Tcp do
       # Each step of the way, make sure `:gen_tcp.controlling_process/2` is called
       # when handing the socket.s
       :ok = :gen_tcp.controlling_process(socket, pid)
+    end
+  end
+
+  def switch_to_active_mode(socket) do
+    if Mix.env() == :test do
+      # When testing we send messages directly to processes instead of relying on
+      # `:inet` behaviour. In that case we can skip any socket operations like these.
+      :ok
+    else
       :inet.setopts(socket, active: true)
     end
   end
@@ -83,15 +92,6 @@ defmodule Protohackex.Tcp do
         500 ->
           {:error, :timeout}
       end
-    end
-
-    @doc """
-    Send a message to the server.
-
-    This works in tandem with `Tcp.receive/2`.
-    """
-    def send_to_server(to_pid, from_socket, payload) do
-      send(to_pid, {:receive, from_socket, {:ok, payload}})
     end
 
     def send_to_active_server(to_pid, from_socket, payload) do
