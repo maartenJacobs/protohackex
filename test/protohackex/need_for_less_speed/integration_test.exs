@@ -107,6 +107,19 @@ defmodule Protohackex.NeedForLessSpeed.IntegrationTest do
       {:ok, message} = :gen_tcp.recv(client_port, 0, 100)
       assert message == Message.encode_error("Too many heartbeats")
     end
+
+    test "can be registered with 0ms interval" do
+      {:ok, client_port} = :gen_tcp.connect({127, 0, 0, 0}, 8080, [:binary, active: false])
+      send!(client_port, Message.encode_want_heartbeat(0))
+
+      # No messages should be sent as interval 0ms means no heartbeat.
+      assert {:error, :timeout} = :gen_tcp.recv(client_port, 0, 200)
+
+      # We can't register a new heartbeat though.
+      send!(client_port, Message.encode_want_heartbeat(200))
+      {:ok, message} = :gen_tcp.recv(client_port, 0, 100)
+      assert message == Message.encode_error("Too many heartbeats")
+    end
   end
 
   defp connect!() do
