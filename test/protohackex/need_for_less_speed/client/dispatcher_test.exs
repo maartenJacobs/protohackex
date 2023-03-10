@@ -30,4 +30,17 @@ defmodule Protohackex.NeedForLessSpeed.Client.DispatcherTest do
       "Dispatcher failed to die after re-identifying"
     )
   end
+
+  test "dispatchers do not accept plates" do
+    dispatcher_pid =
+      start_link_supervised!({Dispatcher, [socket: BufferedSocket.new(self()), roads: [123]]})
+
+    Tcp.send_to_active_server(dispatcher_pid, self(), Message.encode_plate("UN1X", 80))
+
+    ProcessHelper.assert_died(
+      dispatcher_pid,
+      200,
+      "Dispatcher failed to die after re-identifying"
+    )
+  end
 end

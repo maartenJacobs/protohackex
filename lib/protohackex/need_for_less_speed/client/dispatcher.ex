@@ -89,6 +89,11 @@ defmodule Protohackex.NeedForLessSpeed.Client.Dispatcher do
     {:stop, :normal, state}
   end
 
+  def handle_info({:socket_message, {:plate, _, _}}, %__MODULE__{} = state) do
+    force_disconnect(state.buffered_socket.socket, "you're not a camera")
+    {:stop, :normal, state}
+  end
+
   defp force_disconnect(socket, message) do
     Logger.info("Dispatcher forcefully disconnected", socket: inspect(socket))
     Tcp.send_to_client(socket, Message.encode_error(message))
