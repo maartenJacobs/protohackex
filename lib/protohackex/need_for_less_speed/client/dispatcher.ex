@@ -66,7 +66,7 @@ defmodule Protohackex.NeedForLessSpeed.Client.Dispatcher do
   end
 
   def handle_info({:tcp_closed, _socket}, %__MODULE__{} = state) do
-    {:noreply, state}
+    {:stop, :normal, state}
   end
 
   def handle_info({:socket_message, {:want_heartbeat, interval_ms}}, %__MODULE__{} = state) do

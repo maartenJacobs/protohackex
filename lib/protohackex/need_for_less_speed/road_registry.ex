@@ -109,6 +109,11 @@ defmodule Protohackex.NeedForLessSpeed.RoadRegistry do
     {:noreply, registry}
   end
 
+  def handle_info({:DOWN, _ref, :process, dispatcher_pid, _reason}, %__MODULE__{} = registry) do
+    registry = remove_dispatcher(registry, dispatcher_pid)
+    {:noreply, registry}
+  end
+
   defp record_dispatcher(%__MODULE__{} = registry, roads, dispatcher_pid) do
     updated_dispatchers =
       for road <- roads, reduce: registry.dispatchers do
@@ -119,6 +124,21 @@ defmodule Protohackex.NeedForLessSpeed.RoadRegistry do
     for road <- roads do
       send(self(), {:process_queue, road})
     end
+
+    # Monitor the dispatcher so we can deregister it automatically if the client disconnects.
+    Process.monitor(dispatcher_pid)
+
+    struct!(registry, dispatchers: updated_dispatchers)
+  end
+
+  defp remove_dispatcher(%__MODULE__{} = registry, dispatcher_pid) do
+    # This is inefficient with many, many roads but that's most likely not going to be
+    # the case.
+    updated_dispatchers =
+      for {road_id, dispatchers} <- registry.dispatchers do
+        {road_id, List.delete(dispatchers, dispatcher_pid)}
+      end
+      |> Map.new()
 
     struct!(registry, dispatchers: updated_dispatchers)
   end
