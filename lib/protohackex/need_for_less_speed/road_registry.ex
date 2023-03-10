@@ -9,14 +9,16 @@ defmodule Protohackex.NeedForLessSpeed.RoadRegistry do
   alias Protohackex.NeedForLessSpeed.Client.{Supervisor, Dispatcher}
 
   @typep road_data :: %{pid: pid(), ticket_queue: [Violation.t()]}
+  @typep date :: non_neg_integer()
 
   @type t :: %__MODULE__{
           client_supervisor: pid() | atom(),
           roads: %{Road.road_id() => road_data()},
-          dispatchers: %{Road.road_id() => [pid()]}
+          dispatchers: %{Road.road_id() => [pid()]},
+          ticket_log: %{Road.plate() => MapSet.t(date())}
         }
 
-  defstruct [:client_supervisor, :roads, :dispatchers]
+  defstruct [:client_supervisor, :roads, :dispatchers, :ticket_log]
 
   # Interface
 
@@ -50,7 +52,13 @@ defmodule Protohackex.NeedForLessSpeed.RoadRegistry do
   # GenServer callbacks
 
   def init(client_supervisor) do
-    {:ok, %__MODULE__{client_supervisor: client_supervisor, roads: %{}, dispatchers: %{}}}
+    {:ok,
+     %__MODULE__{
+       client_supervisor: client_supervisor,
+       roads: %{},
+       dispatchers: %{},
+       ticket_log: %{}
+     }}
   end
 
   def handle_call({:get_road, road_id}, _from, %__MODULE__{} = registry) do
@@ -97,10 +105,13 @@ defmodule Protohackex.NeedForLessSpeed.RoadRegistry do
         # to the front of the list.
         [dispatcher | _] = dispatchers
 
-        Enum.each(registry.roads[road].ticket_queue, fn violation ->
+        registry.roads[road].ticket_queue
+        |> prune_duplicate_tickets(registry)
+        |> Enum.each(fn violation ->
           Dispatcher.send_ticket(dispatcher, violation)
         end)
 
+        registry = record_ticket_log(registry, registry.roads[road].ticket_queue)
         put_in(registry.roads[road].ticket_queue, [])
       else
         registry
@@ -112,6 +123,31 @@ defmodule Protohackex.NeedForLessSpeed.RoadRegistry do
   def handle_info({:DOWN, _ref, :process, dispatcher_pid, _reason}, %__MODULE__{} = registry) do
     registry = remove_dispatcher(registry, dispatcher_pid)
     {:noreply, registry}
+  end
+
+  defp prune_duplicate_tickets(violations, %__MODULE__{} = registry) do
+    Enum.reject(violations, fn %Violation{} = violation ->
+      plate_ticket_log = Map.get(registry.ticket_log, violation.plate, MapSet.new())
+      date1 = floor(violation.timestamp1 / 86400)
+      date2 = floor(violation.timestamp2 / 86400)
+
+      MapSet.member?(plate_ticket_log, date1) || MapSet.member?(plate_ticket_log, date2)
+    end)
+  end
+
+  defp record_ticket_log(%__MODULE__{} = registry, violations) do
+    updated_ticket_log =
+      for violation <- violations, reduce: registry.ticket_log do
+        ticket_log ->
+          updated_plate_ticket_log =
+            Map.get(ticket_log, violation.plate, MapSet.new())
+            |> MapSet.put(floor(violation.timestamp1 / 86400))
+            |> MapSet.put(floor(violation.timestamp2 / 86400))
+
+          put_in(ticket_log[violation.plate], updated_plate_ticket_log)
+      end
+
+    struct(registry, ticket_log: updated_ticket_log)
   end
 
   defp record_dispatcher(%__MODULE__{} = registry, roads, dispatcher_pid) do
