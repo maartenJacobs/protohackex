@@ -5,6 +5,8 @@ defmodule Protohackex.NeedForLessSpeed.SpeedChecker do
 
   alias Protohackex.NeedForLessSpeed.{Road, Violation}
 
+  require Logger
+
   @tolerance_mph 0.5
 
   @type camera_id :: any()
@@ -43,6 +45,10 @@ defmodule Protohackex.NeedForLessSpeed.SpeedChecker do
   @spec add_observation(t(), camera_id(), Road.plate(), non_neg_integer()) ::
           {t(), [Violation.t()]}
   def add_observation(%__MODULE__{} = checker, camera_id, plate, timestamp) do
+    Logger.info(
+      "Plate #{plate} detected on road #{checker.road} at time #{timestamp} and position #{checker.camera_positions[camera_id]}"
+    )
+
     checker =
       add_observation_in_order(checker, plate, %{camera_id: camera_id, timestamp: timestamp})
 
@@ -58,7 +64,7 @@ defmodule Protohackex.NeedForLessSpeed.SpeedChecker do
 
     observations = Map.put(observations, plate, plate_observations)
 
-    %{checker | observations: observations}
+    struct!(checker, observations: observations)
   end
 
   defp detect_violations(%__MODULE__{} = checker, plate, timestamp) do

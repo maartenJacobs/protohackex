@@ -144,9 +144,11 @@ defmodule Protohackex.NeedForLessSpeed.Road do
     {checker, violations} =
       SpeedChecker.add_observation(state.speed_checker, camera_socket, plate, timestamp)
 
-    Logger.info("Plate detected and found #{length(violations)} violations",
-      socket: inspect(camera_socket)
-    )
+    if !Enum.empty?(violations),
+      do:
+        Logger.info("Plate #{plate} found to have #{length(violations)} violations",
+          socket: inspect(camera_socket)
+        )
 
     for violation <- violations do
       RoadRegistry.dispatch_ticket(state.road_registry, violation)
