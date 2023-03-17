@@ -8,6 +8,8 @@ defmodule Protohackex.NeedForLessSpeed.Dispatch do
   alias Protohackex.NeedForLessSpeed.Violation
   alias Protohackex.NeedForLessSpeed.Client.{Dispatcher, Supervisor}
 
+  require Logger
+
   defstruct [:client_supervisor, :dispatchers_table, :ticket_queue_table, :ticket_log_table]
 
   # Interface
@@ -95,6 +97,8 @@ defmodule Protohackex.NeedForLessSpeed.Dispatch do
   end
 
   def handle_cast({:queue_ticket, violation}, %__MODULE__{} = dispatch) do
+    Logger.info("Queueing ticket for #{violation.plate} on road #{violation.road}")
+
     queue =
       get_ticket_queue(dispatch, violation.road)
       |> then(fn queue -> :queue.in(violation, queue) end)
@@ -122,6 +126,8 @@ defmodule Protohackex.NeedForLessSpeed.Dispatch do
       end)
 
       :ets.insert(dispatch.ticket_queue_table, {road_id, :queue.new()})
+    else
+      Logger.info("No dispatchers for road #{road_id}")
     end
 
     {:noreply, dispatch}
@@ -149,30 +155,37 @@ defmodule Protohackex.NeedForLessSpeed.Dispatch do
     if !already_sent_today?(dispatch, violation) do
       Dispatcher.send_ticket(dispatcher, violation)
 
-      ticket_log = lookup_ticket_log(dispatch, violation.road)
+      ticket_log = lookup_ticket_log(dispatch, violation.road, violation.plate)
 
       updated_ticket_log =
-        Map.get(ticket_log, violation.plate, MapSet.new())
+        ticket_log
         |> MapSet.put(floor(violation.timestamp1 / 86400))
         |> MapSet.put(floor(violation.timestamp2 / 86400))
 
-      :ets.insert(dispatch.ticket_log_table, {violation.road, updated_ticket_log})
+      :ets.insert(
+        dispatch.ticket_log_table,
+        {{violation.road, violation.plate}, updated_ticket_log}
+      )
+    else
+      Logger.info(
+        "Already sent ticket for #{violation.plate} on road #{violation.road} on timestamps #{violation.timestamp1} and #{violation.timestamp2}"
+      )
     end
 
     :ok
   end
 
   defp already_sent_today?(%__MODULE__{} = dispatch, %Violation{} = violation) do
-    plate_ticket_log = lookup_ticket_log(dispatch, violation.road)
+    plate_ticket_log = lookup_ticket_log(dispatch, violation.road, violation.plate)
     date1 = floor(violation.timestamp1 / 86400)
     date2 = floor(violation.timestamp2 / 86400)
 
     MapSet.member?(plate_ticket_log, date1) || MapSet.member?(plate_ticket_log, date2)
   end
 
-  defp lookup_ticket_log(dispatch, road_id) do
-    case :ets.lookup(dispatch.ticket_log_table, road_id) do
-      [{^road_id, ticket_log}] -> ticket_log
+  defp lookup_ticket_log(dispatch, road_id, plate) do
+    case :ets.lookup(dispatch.ticket_log_table, {road_id, plate}) do
+      [{{^road_id, ^plate}, ticket_log}] -> ticket_log
       [] -> MapSet.new()
     end
   end
