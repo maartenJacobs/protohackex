@@ -31,6 +31,10 @@ defmodule Protohackex.NeedForLessSpeed.SpeedChecker do
             observations: %{}
 
   def add_camera(%__MODULE__{} = checker, road, camera_id, camera_road_offset, speed_limit_mph) do
+    Logger.info(
+      "Adding camera #{inspect(camera_id)} to road #{road} with speed limit #{speed_limit_mph}"
+    )
+
     new_cameras = Map.put(checker.camera_positions, camera_id, camera_road_offset)
 
     %{checker | road: road, speed_limit_mph: speed_limit_mph, camera_positions: new_cameras}
@@ -99,8 +103,10 @@ defmodule Protohackex.NeedForLessSpeed.SpeedChecker do
 
   defp detect_violation(%__MODULE__{} = checker, plate, earlier_observation, later_observation) do
     distance_travelled_miles =
-      checker.camera_positions[later_observation.camera_id] -
-        checker.camera_positions[earlier_observation.camera_id]
+      abs(
+        checker.camera_positions[later_observation.camera_id] -
+          checker.camera_positions[earlier_observation.camera_id]
+      )
 
     time_elapsed_sec = later_observation.timestamp - earlier_observation.timestamp
 
@@ -114,7 +120,7 @@ defmodule Protohackex.NeedForLessSpeed.SpeedChecker do
         timestamp1: earlier_observation.timestamp,
         mile2: checker.camera_positions[later_observation.camera_id],
         timestamp2: later_observation.timestamp,
-        speed_mph: trunc(speed_mph)
+        speed_mph: round(speed_mph)
       }
     end
   end

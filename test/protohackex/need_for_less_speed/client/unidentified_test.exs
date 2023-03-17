@@ -1,5 +1,6 @@
 defmodule Protohackex.NeedForLessSpeed.Client.UnidentifiedTest do
   use ExUnit.Case
+  alias Protohackex.NeedForLessSpeed.Dispatch
   alias Protohackex.NeedForLessSpeed.Message
   alias Protohackex.NeedForLessSpeed.RoadRegistry
   alias Protohackex.Tcp
@@ -10,12 +11,16 @@ defmodule Protohackex.NeedForLessSpeed.Client.UnidentifiedTest do
   setup do
     client_supervisor = start_link_supervised!({Supervisor, [name: nil]})
 
+    dispatch =
+      start_link_supervised!({Dispatch, [name: nil, client_supervisor: client_supervisor]})
+
     registry =
       start_link_supervised!({RoadRegistry, [name: nil, client_supervisor: client_supervisor]})
 
-    client = start_supervised!({Unidentified, [socket: self(), registry: registry]})
+    client =
+      start_supervised!({Unidentified, [socket: self(), registry: registry, dispatch: dispatch]})
 
-    %{client: client, registry: registry}
+    %{client: client, registry: registry, dispatch: dispatch}
   end
 
   test "identify as camera", %{client: client, registry: registry} do
@@ -36,7 +41,7 @@ defmodule Protohackex.NeedForLessSpeed.Client.UnidentifiedTest do
     assert Process.alive?(road)
   end
 
-  test "identify as dispatcher", %{client: client, registry: registry} do
+  test "identify as dispatcher", %{client: client, dispatch: dispatch} do
     roads = [29, 208, 10883]
     dispatcher_id_message = Message.encode_dispatcher_id(roads)
 
@@ -50,7 +55,7 @@ defmodule Protohackex.NeedForLessSpeed.Client.UnidentifiedTest do
 
     dispatchers =
       for road <- roads do
-        RoadRegistry.get_dispatchers(registry, road)
+        Dispatch.list_dispatchers(dispatch, road)
       end
       |> List.flatten()
       |> Enum.uniq()

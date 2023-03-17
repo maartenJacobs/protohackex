@@ -8,6 +8,7 @@ defmodule Protohackex.Application do
       {Registry, keys: :unique, name: Protohackex.NeedForLessSpeed.Heart.Registry},
       Protohackex.NeedForLessSpeed.Heart,
       Protohackex.NeedForLessSpeed.Client.Supervisor,
+      Protohackex.NeedForLessSpeed.Dispatch,
       Protohackex.NeedForLessSpeed.RoadRegistry,
       Tcp.AsyncServer.ConnectionSupervisor,
       {Tcp.AsyncServer,

@@ -2,7 +2,15 @@ defmodule Protohackex.NeedForLessSpeed.Road do
   use GenServer
 
   alias Protohackex.Tcp
-  alias Protohackex.NeedForLessSpeed.{BufferedSocket, Heart, Message, RoadRegistry, SpeedChecker}
+
+  alias Protohackex.NeedForLessSpeed.{
+    BufferedSocket,
+    Dispatch,
+    Heart,
+    Message,
+    RoadRegistry,
+    SpeedChecker
+  }
 
   require Logger
 
@@ -12,6 +20,7 @@ defmodule Protohackex.NeedForLessSpeed.Road do
 
   @type t :: %__MODULE__{
           road_registry: pid() | atom(),
+          dispatch: pid() | atom(),
           heart: pid() | atom(),
           road_id: road_id(),
           speed_checker: SpeedChecker.t(),
@@ -19,6 +28,7 @@ defmodule Protohackex.NeedForLessSpeed.Road do
         }
   defstruct [
     :road_registry,
+    :dispatch,
     :heart,
     :road_id,
     speed_checker: %SpeedChecker{},
@@ -30,9 +40,10 @@ defmodule Protohackex.NeedForLessSpeed.Road do
   def start_link(opts) do
     road_id = Keyword.fetch!(opts, :road_id)
     road_registry = Keyword.get(opts, :road_registry, RoadRegistry)
+    dispatch = Keyword.get(opts, :dispatch, Dispatch)
     heart = Keyword.get(opts, :heart, Heart)
 
-    GenServer.start_link(__MODULE__, {road_id, road_registry, heart})
+    GenServer.start_link(__MODULE__, {road_id, road_registry, dispatch, heart})
   end
 
   @doc """
@@ -65,8 +76,9 @@ defmodule Protohackex.NeedForLessSpeed.Road do
 
   # GenServer callbacks
 
-  def init({road_id, road_registry, heart}) do
-    {:ok, %__MODULE__{road_id: road_id, road_registry: road_registry, heart: heart}}
+  def init({road_id, road_registry, dispatch, heart}) do
+    {:ok,
+     %__MODULE__{road_id: road_id, road_registry: road_registry, heart: heart, dispatch: dispatch}}
   end
 
   def handle_info({:tcp, camera_socket, payload}, %__MODULE__{} = state) do
@@ -151,7 +163,7 @@ defmodule Protohackex.NeedForLessSpeed.Road do
         )
 
     for violation <- violations do
-      RoadRegistry.dispatch_ticket(state.road_registry, violation)
+      Dispatch.issue_ticket(state.dispatch, violation)
     end
 
     struct!(state, speed_checker: checker)

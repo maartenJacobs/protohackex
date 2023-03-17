@@ -25,6 +25,28 @@ defmodule Protohackex.NeedForLessSpeed.SpeedCheckerTest do
            ]
   end
 
+  test "detects speed violation going back down the road" do
+    checker =
+      %SpeedChecker{}
+      |> SpeedChecker.add_camera(123, 1, 8, 60)
+      |> SpeedChecker.add_camera(123, 2, 9, 60)
+
+    {checker, []} = SpeedChecker.add_observation(checker, 2, "UN1X", 0)
+    {_checker, violations} = SpeedChecker.add_observation(checker, 1, "UN1X", 45)
+
+    assert violations == [
+             %Protohackex.NeedForLessSpeed.Violation{
+               mile1: 9,
+               mile2: 8,
+               plate: "UN1X",
+               road: 123,
+               speed_mph: 80,
+               timestamp1: 0,
+               timestamp2: 45
+             }
+           ]
+  end
+
   test "detects violations before and after new observation" do
     checker =
       %SpeedChecker{}

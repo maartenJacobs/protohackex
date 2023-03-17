@@ -11,30 +11,44 @@ defmodule Protohackex.NeedForLessSpeed.Client.Unidentified do
   use GenServer, restart: :transient
 
   alias Protohackex.Tcp
-  alias Protohackex.NeedForLessSpeed.{BufferedSocket, Heart, Message, Road, RoadRegistry}
+
+  alias Protohackex.NeedForLessSpeed.{
+    BufferedSocket,
+    Dispatch,
+    Heart,
+    Message,
+    Road,
+    RoadRegistry
+  }
 
   require Logger
 
-  defstruct [:buffered_socket, :heart, :registry]
+  defstruct [:buffered_socket, :heart, :registry, :dispatch]
 
   # Interface
 
   def start_link(opts) do
     socket = Keyword.fetch!(opts, :socket)
     registry = Keyword.get(opts, :registry, RoadRegistry)
+    dispatch = Keyword.get(opts, :dispatch, Dispatch)
     heart = Keyword.get(opts, :heart, Heart)
 
-    GenServer.start_link(__MODULE__, {socket, registry, heart})
+    GenServer.start_link(__MODULE__, {socket, registry, dispatch, heart})
   end
 
   # GenServer callbacks
 
-  def init({socket, registry, heart}) do
+  def init({socket, registry, dispatch, heart}) do
     Logger.info("Unidentified client connected", socket: inspect(socket))
     Tcp.switch_to_active_mode(socket)
 
     {:ok,
-     %__MODULE__{buffered_socket: BufferedSocket.new(socket), registry: registry, heart: heart}}
+     %__MODULE__{
+       buffered_socket: BufferedSocket.new(socket),
+       registry: registry,
+       heart: heart,
+       dispatch: dispatch
+     }}
   end
 
   def handle_info({:tcp, _socket, payload}, %__MODULE__{} = state) do
@@ -108,7 +122,7 @@ defmodule Protohackex.NeedForLessSpeed.Client.Unidentified do
   end
 
   defp register_dispatcher(%__MODULE__{} = state, roads) do
-    dispatcher_pid = RoadRegistry.start_dispatcher(state.registry, state.buffered_socket, roads)
+    dispatcher_pid = Dispatch.start_dispatcher(state.dispatch, state.buffered_socket, roads)
     Tcp.controlling_process(state.buffered_socket.socket, dispatcher_pid)
     :ok
   end

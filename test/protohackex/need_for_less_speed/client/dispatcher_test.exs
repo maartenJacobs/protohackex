@@ -1,6 +1,7 @@
 defmodule Protohackex.NeedForLessSpeed.Client.DispatcherTest do
   use ExUnit.Case
 
+  alias Protohackex.NeedForLessSpeed.Violation
   alias Protohackex.Tcp
   alias Protohackex.NeedForLessSpeed.{BufferedSocket, Message}
   alias Protohackex.NeedForLessSpeed.Client.Dispatcher
@@ -42,5 +43,25 @@ defmodule Protohackex.NeedForLessSpeed.Client.DispatcherTest do
       200,
       "Dispatcher failed to die after re-identifying"
     )
+  end
+
+  test "dispatchers send tickets" do
+    dispatcher_pid =
+      start_link_supervised!({Dispatcher, [socket: BufferedSocket.new(self()), roads: [123]]})
+
+    violation = %Violation{
+      mile1: 8,
+      mile2: 9,
+      plate: "UN1X",
+      timestamp1: 0,
+      timestamp2: 45,
+      road: 123,
+      speed_mph: 80
+    }
+
+    Dispatcher.send_ticket(dispatcher_pid, violation)
+
+    {:ok, message} = Tcp.receive_payload()
+    assert message == Message.encode_ticket(violation)
   end
 end
