@@ -197,6 +197,14 @@ defmodule Protohackex.NeedForLessSpeed.Road do
     deregister_camera(state, camera_socket)
   end
 
+  defp process_message(state, camera_socket, :invalid_message) do
+    Logger.info("Camera forcefully disconnected", socket: inspect(camera_socket))
+    Tcp.send_to_client(camera_socket, Message.encode_error("What are you even saying?"))
+    Tcp.close(camera_socket)
+
+    deregister_camera(state, camera_socket)
+  end
+
   defp process_message(state, _camera_socket, :unknown) do
     state
   end

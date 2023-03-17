@@ -112,6 +112,17 @@ defmodule Protohackex.NeedForLessSpeed.Client.Unidentified do
     {:stop, :normal, state}
   end
 
+  def handle_info({:socket_message, :invalid_message}, state) do
+    Logger.info(
+      "Unidentified client forcibly disconnected because it's sending garbage",
+      socket: inspect(state.buffered_socket.socket)
+    )
+
+    Tcp.send_to_client(state.buffered_socket.socket, Message.encode_error("Get off my lawn"))
+    Tcp.close(state.buffered_socket.socket)
+    {:stop, :normal, state}
+  end
+
   def handle_info({:socket_message, :unknown}, state) do
     {:noreply, state}
   end

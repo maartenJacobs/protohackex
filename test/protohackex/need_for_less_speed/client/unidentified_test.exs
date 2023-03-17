@@ -3,6 +3,7 @@ defmodule Protohackex.NeedForLessSpeed.Client.UnidentifiedTest do
   alias Protohackex.NeedForLessSpeed.Dispatch
   alias Protohackex.NeedForLessSpeed.Message
   alias Protohackex.NeedForLessSpeed.RoadRegistry
+  alias Protohackex.NeedForLessSpeed.Violation
   alias Protohackex.Tcp
 
   alias Protohackex.NeedForLessSpeed.Client.Unidentified
@@ -68,6 +69,54 @@ defmodule Protohackex.NeedForLessSpeed.Client.UnidentifiedTest do
 
   test "handles invalid messages by disconnecting", %{client: client} do
     Tcp.send_to_active_server(client, self(), Message.encode_plate("ABC123", 123))
+
+    ProcessHelper.assert_died(
+      client,
+      500,
+      "Unidentified client did not die after invalid message"
+    )
+
+    assert {:ok, <<16::unsigned-integer-8, _rest::binary>>} = Tcp.receive_payload()
+  end
+
+  test "handles server->client message (error) by disconnecting", %{client: client} do
+    Tcp.send_to_active_server(client, self(), Message.encode_error("Invalid message"))
+
+    ProcessHelper.assert_died(
+      client,
+      500,
+      "Unidentified client did not die after invalid message"
+    )
+
+    assert {:ok, <<16::unsigned-integer-8, _rest::binary>>} = Tcp.receive_payload()
+  end
+
+  test "handles server->client message (ticket) by disconnecting", %{client: client} do
+    Tcp.send_to_active_server(
+      client,
+      self(),
+      Message.encode_ticket(%Violation{
+        mile1: 8,
+        mile2: 9,
+        plate: "UN1X",
+        timestamp1: 100_000,
+        timestamp2: 102_092,
+        road: 1,
+        speed_mph: 80
+      })
+    )
+
+    ProcessHelper.assert_died(
+      client,
+      500,
+      "Unidentified client did not die after invalid message"
+    )
+
+    assert {:ok, <<16::unsigned-integer-8, _rest::binary>>} = Tcp.receive_payload()
+  end
+
+  test "handles server->client message (heartbeat) by disconnecting", %{client: client} do
+    Tcp.send_to_active_server(client, self(), Message.encode_heartbeat())
 
     ProcessHelper.assert_died(
       client,

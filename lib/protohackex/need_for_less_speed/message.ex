@@ -14,6 +14,7 @@ defmodule Protohackex.NeedForLessSpeed.Message do
           | {:want_heartbeat, non_neg_integer()}
           | {:camera_id, Road.camera()}
           | {:dispatcher_id, [non_neg_integer()]}
+          | :invalid_message
           | :unknown
 
   @spec parse_message(binary()) :: {message_type(), binary()}
@@ -34,6 +35,30 @@ defmodule Protohackex.NeedForLessSpeed.Message do
         rest::binary>> ->
         roads = decode_roads(roads)
         {{:dispatcher_id, roads}, rest}
+
+      # Clients may also send messages that are supposed to come from the server.
+      # But these should be considered invalid: clients are not servers.
+
+      <<16::unsigned-integer-8, error_length::unsigned-integer-8,
+        _error_msg::binary-size(error_length), rest::binary>> ->
+        {:invalid_message, rest}
+
+      <<
+        33::unsigned-integer-8,
+        plate_length::unsigned-integer-8,
+        _plate::binary-size(plate_length),
+        _road::unsigned-integer-16,
+        _mile1::unsigned-integer-16,
+        _timestamp1::unsigned-integer-32,
+        _mile2::unsigned-integer-16,
+        _timestamp2::unsigned-integer-32,
+        _speed::unsigned-integer-16,
+        rest::binary
+      >> ->
+        {:invalid_message, rest}
+
+      <<65::unsigned-integer-8, rest::binary>> ->
+        {:invalid_message, rest}
 
       _ ->
         {:unknown, payload}
