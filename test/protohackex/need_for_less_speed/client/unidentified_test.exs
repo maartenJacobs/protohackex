@@ -126,4 +126,16 @@ defmodule Protohackex.NeedForLessSpeed.Client.UnidentifiedTest do
 
     assert {:ok, <<16::unsigned-integer-8, _rest::binary>>} = Tcp.receive_payload()
   end
+
+  test "handles invalid message types by disconnecting", %{client: client} do
+    Tcp.send_to_active_server(client, self(), <<1::unsigned-integer-8>>)
+
+    ProcessHelper.assert_died(
+      client,
+      500,
+      "Unidentified client did not die after invalid message"
+    )
+
+    assert {:ok, <<16::unsigned-integer-8, _rest::binary>>} = Tcp.receive_payload()
+  end
 end

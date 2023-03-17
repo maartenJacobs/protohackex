@@ -9,6 +9,18 @@ defmodule Protohackex.NeedForLessSpeed.Message do
   alias Protohackex.NeedForLessSpeed.Violation
   alias Protohackex.NeedForLessSpeed.Road
 
+  require Logger
+
+  @valid_message_types [
+    16,
+    32,
+    33,
+    64,
+    65,
+    128,
+    129
+  ]
+
   @type message_type ::
           {:plate, String.t(), non_neg_integer()}
           | {:want_heartbeat, non_neg_integer()}
@@ -60,7 +72,20 @@ defmodule Protohackex.NeedForLessSpeed.Message do
       <<65::unsigned-integer-8, rest::binary>> ->
         {:invalid_message, rest}
 
+      <<message_code::unsigned-integer-8, rest::binary>> ->
+        # The message may be in a state of being sent, e.g. byte by byte instead of a whole message.
+        # Fortunately for the message is a single byte so no matter what we should be receiving a
+        # byte that matches a known message type.
+        if message_code in @valid_message_types do
+          # Continue receiving, basically.
+          {:unknown, payload}
+        else
+          {:invalid_message, rest}
+        end
+
       _ ->
+        # This will actually just be an empty message. In a real system we would refactor
+        # this to prevent empty messages.
         {:unknown, payload}
     end
   end
