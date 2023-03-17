@@ -75,6 +75,6 @@ defmodule Protohackex.NeedForLessSpeed.Client.UnidentifiedTest do
       "Unidentified client did not die after invalid message"
     )
 
-    assert {:ok, <<10::unsigned-integer-8, _rest::binary>>} = Tcp.receive_payload()
+    assert {:ok, <<16::unsigned-integer-8, _rest::binary>>} = Tcp.receive_payload()
   end
 end

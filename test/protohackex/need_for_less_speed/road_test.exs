@@ -34,7 +34,7 @@ defmodule Protohackex.NeedForLessSpeed.RoadTest do
     Tcp.send_to_active_server(road_pid, self(), Message.encode_dispatcher_id([1, 42]))
 
     assert [] == Road.connected_cameras(road_pid)
-    assert {:ok, <<10::unsigned-integer-8, _rest::binary>>} = Tcp.receive_payload()
+    assert {:ok, <<16::unsigned-integer-8, _rest::binary>>} = Tcp.receive_payload()
   end
 
   test "cameras cannot identify again as cameras" do
@@ -49,6 +49,6 @@ defmodule Protohackex.NeedForLessSpeed.RoadTest do
     Tcp.send_to_active_server(road_pid, self(), Message.encode_camera_id(42, 8, 80))
 
     assert [] == Road.connected_cameras(road_pid)
-    assert {:ok, <<10::unsigned-integer-8, _rest::binary>>} = Tcp.receive_payload()
+    assert {:ok, <<16::unsigned-integer-8, _rest::binary>>} = Tcp.receive_payload()
   end
 end

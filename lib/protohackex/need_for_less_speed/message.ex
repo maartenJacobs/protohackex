@@ -41,7 +41,7 @@ defmodule Protohackex.NeedForLessSpeed.Message do
   end
 
   def encode_error(message) do
-    <<10::unsigned-integer-8, String.length(message)::unsigned-integer-8, message::binary>>
+    <<16::unsigned-integer-8, String.length(message)::unsigned-integer-8, message::binary>>
   end
 
   def encode_ticket(%Violation{} = violation) do
